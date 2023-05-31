@@ -32,7 +32,7 @@ class Welcome extends REST_Controller {
 					'password'=>$password
 				);
 				$check_login=$this->model->selectWhereData('login',$login_info,'*');
-				echo "<pre>";print_r($check_login);die();
+				//echo "<pre>";print_r($check_login);die();
 				if(!empty($check_login)){
 				}
 				$response['code'] = REST_Controller::HTTP_OK;
@@ -84,15 +84,18 @@ class Welcome extends REST_Controller {
 				$response['code'] = 201;
 				$response['message'] = 'Password is Required'; 
 			}else{
-				$owner_info=array(
-					'owner_name'=>$owner_name,
-					'email'=>$email,
-					'contact'=>$contact,
-					'address'=>$address,
-					'pancard'=>$pancard,
-				);
+				
 				$check_owner_exist = $this->model->selectWhereData('owner', array('owner_name'=>$owner_name,'email'=>$email,'contact'=>$contact),array('id'));
-				if(empty($check_owner_exist)){
+				$check_login_exist = $this->model->selectWhereData('login', array('username'=>$owner_name,'email'=>$email,'contact'=>$contact,'roles'=>1),array('id'));
+					
+				if(empty($check_owner_exist) && empty($check_login_exist)){
+					$owner_info=array(
+						'owner_name'=>$owner_name,
+						'email'=>$email,
+						'contact'=>$contact,
+						'address'=>$address,
+						'pancard'=>$pancard,
+					);
 					$inserted_id=$this->model->insertData('owner',$owner_info);
 					$login_info=array(
 						'username'=>$owner_name,
@@ -102,10 +105,7 @@ class Welcome extends REST_Controller {
 						'contact'=>$contact,
 						'roles'=>1,
 					);
-					$check_login_exist = $this->model->selectWhereData('login', array('username'=>$owner_name,'email'=>$email,'contact'=>$contact,'roles'=>1),array('id'));
-					if(empty($check_login_exist)){
-						$inserted_id1=$this->model->insertData('login',$login_info);
-					}
+					$inserted_id1=$this->model->insertData('login',$login_info);
 					
 					$response['code'] = REST_Controller::HTTP_OK;
 					$response['status'] = true;
@@ -163,15 +163,18 @@ class Welcome extends REST_Controller {
 				$response['code'] = 201;
 				$response['message'] = 'Password is Required'; 
 			}else{
-				$supervisor_info=array(
-					'name'=>$name,
-					'email'=>$email,
-					'contact'=>$contact,
-					'address'=>$address,
-					'pancard'=>$pancard,
-				);
+			
 				$check_supervisor_exist = $this->model->selectWhereData('supervisor', array('name'=>$name,'email'=>$email,'contact'=>$contact),array('id'));
-				if(empty($check_supervisor_exist)){
+				$check_login_exist = $this->model->selectWhereData('login', array('username'=>$name,'email'=>$email,'contact'=>$contact,'roles'=>2),array('id'));
+					
+				if(empty($check_supervisor_exist) && empty($check_login_exist)){
+					$supervisor_info=array(
+						'name'=>$name,
+						'email'=>$email,
+						'contact'=>$contact,
+						'address'=>$address,
+						'pancard'=>$pancard,
+					);
 					$inserted_id=$this->model->insertData('supervisor',$supervisor_info);
 					$login_info=array(
 						'username'=>$name,
@@ -181,10 +184,8 @@ class Welcome extends REST_Controller {
 						'contact'=>$contact,
 						'roles'=>2,
 					);
-					$check_login_exist = $this->model->selectWhereData('login', array('username'=>$name,'email'=>$email,'contact'=>$contact,'roles'=>2),array('id'));
-					if(empty($check_login_exist)){
-						$inserted_id1=$this->model->insertData('login',$login_info);
-					}
+				
+					$inserted_id1=$this->model->insertData('login',$login_info);
 				
 					$response['code'] = REST_Controller::HTTP_OK;
 					$response['status'] = true;
@@ -246,9 +247,9 @@ class Welcome extends REST_Controller {
 					'pancard'=>$pancard,
 				);
 				$check_worker_exist = $this->model->selectWhereData('workers', array('name'=>$name,'contact'=>$contact),array('id'));
-				//echo $this->db->last_query();die();
-				//echo $check_worker_exist;die();
-				if(empty($check_worker_exist)){
+				$check_login_exist = $this->model->selectWhereData('login', array('username'=>$name,'contact'=>$contact,'roles'=>3),array('id'));
+					
+				if(empty($check_worker_exist)  && empty($check_login_exist)){
 					$inserted_id=$this->model->insertData('workers',$workers_info);
 					$login_info=array(
 						'username'=>$name,
@@ -257,10 +258,8 @@ class Welcome extends REST_Controller {
 						'contact'=>$contact,
 						'roles'=>3,
 					);
-					$check_login_exist = $this->model->selectWhereData('login', array('username'=>$name,'contact'=>$contact,'roles'=>3),array('id'));
-					if(empty($check_login_exist)){
-						$inserted_id1=$this->model->insertData('login',$login_info);
-					}
+					
+					$inserted_id1=$this->model->insertData('login',$login_info);
 					
 					$response['code'] = REST_Controller::HTTP_OK;
 					$response['status'] = true;
@@ -314,17 +313,18 @@ class Welcome extends REST_Controller {
 				$response['code'] = 201;
 				$response['message'] = 'Address is Required'; 
 			}else{
-				$company_list_info=array(
-					'company_name'=>$company_name,
-					'owner_name'=>$owner_name,
-					'company_created_at'=>$company_created_at,
-					'gst_no'=>$gst_no,
-					'address'=>$address,
-					'created_at'=>date('Y-m-d H:i:s'),
-				);
+			
 				$check_company_exist = $this->model->selectWhereData('company_list', array('company_name'=>$company_name,'owner_name'=>$owner_name),array('id'));
 				
 				if(empty($check_company_exist)){
+					$company_list_info=array(
+						'company_name'=>$company_name,
+						'owner_name'=>$owner_name,
+						'company_created_at'=>$company_created_at,
+						'gst_no'=>$gst_no,
+						'address'=>$address,
+						'created_at'=>date('Y-m-d H:i:s'),
+					);
 					$inserted_id=$this->model->insertData('company_list',$company_list_info);
 					$response['code'] = REST_Controller::HTTP_OK;
 					$response['status'] = true;
@@ -415,9 +415,9 @@ class Welcome extends REST_Controller {
 				);
 				$check_company_exist = $this->model->updateData('company_list',$company_list_info,array('id'=>$company_id));
 			
-					$response['code'] = REST_Controller::HTTP_OK;
-					$response['status'] = true;
-					$response['message'] = 'Company Updated Successfull'; 
+				$response['code'] = REST_Controller::HTTP_OK;
+				$response['status'] = true;
+				$response['message'] = 'Company Updated Successfull'; 
 			
 			}
 		}else{
@@ -498,18 +498,19 @@ class Welcome extends REST_Controller {
 				$response['code'] = 201;
 				$response['message'] = 'Worker Id is Required'; 
 			}else{
-				$company_list_info=array(
-					'client_name'=>$client_name,
-					'address'=>$address,
-					'project_name'=>$project_name,
-					'company_id'=>$company_id,
-					'supervisor_id'=>$supervisor_id,
-					'worker_id'=>$worker_id,
-					'created_at'=>date('Y-m-d H:i:s')
-				);
+			
 				$check_company_exist = $this->model->selectWhereData('project_list', array('client_name'=>$client_name,'project_name'=>$project_name),array('id'));
 				
 				if(empty($check_company_exist)){
+					$company_list_info=array(
+						'client_name'=>$client_name,
+						'address'=>$address,
+						'project_name'=>$project_name,
+						'company_id'=>$company_id,
+						'supervisor_id'=>$supervisor_id,
+						'worker_id'=>$worker_id,
+						'created_at'=>date('Y-m-d H:i:s')
+					);
 					$inserted_id=$this->model->insertData('project_list',$company_list_info);
 					$response['code'] = REST_Controller::HTTP_OK;
 					$response['status'] = true;
