@@ -3,10 +3,10 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 ini_set("memory_limit", "-1");
 require APPPATH . '/libraries/REST_Controller.php';
 class Welcome extends REST_Controller {
-	public function __construct()
+    public function __construct()
     {
         parent::__construct();
-		header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Origin: *');
         header('Access-Control-Allow-Credentials: true');
         header('Access-Control-Allow-Headers: Content-Type');
         header('Content-Type: text/html; charset=utf-8');
@@ -20,8 +20,6 @@ class Welcome extends REST_Controller {
         echo json_encode($response);
     }
 
-	/**===========================================================Login & Registrations apis================================================================= */
-
 	public function login_post()
 	{
 		$response = array('code' => - 1, 'status' => false, 'message' => '');
@@ -29,7 +27,6 @@ class Welcome extends REST_Controller {
 		if ($validate) {
 			$username=$this->input->post('username');
 			$password=$this->input->post('password');
-			//$role_id=$this->input->post('role_id');
 
 			if(empty($username))
 			{
@@ -42,20 +39,15 @@ class Welcome extends REST_Controller {
 			}else{
 				$login_info=array(
 					'username'=>$username,
-					"password" => dec_enc('encrypt',$password),
+					'password'=>$password
 				);
 				$check_login=$this->model->selectWhereData('login',$login_info,'*');
+				//echo "<pre>";print_r($check_login);die();
 				if(!empty($check_login)){
-
-					$response['code'] = REST_Controller::HTTP_OK;
-					$response['status'] = true;
-					$response['message'] = 'Login Successfull'; 
 				}
-				else{
-					$response['code'] = 201;
-					$response['status'] = true;
-					$response['message'] = 'Login Failed'; 
-				}
+				$response['code'] = REST_Controller::HTTP_OK;
+				$response['status'] = true;
+				$response['message'] = 'Registration Successfull'; 
 			}
 		}else{
 			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
@@ -668,8 +660,8 @@ class Welcome extends REST_Controller {
 		
 		echo json_encode($response);
 	}
-
-	/**===========================================================Materials apis================================================================= */
+	
+/**===========================================================Materials apis================================================================= */
 
 	public function add_new_material_post()
 	{
@@ -679,38 +671,29 @@ class Welcome extends REST_Controller {
 			
 			// $project_id=$this->input->post('project_id');
 			// $supervisor_id=$this->input->post('supervisor_id');
-			$material_unit=$this->input->post('material_unit');
+			$material_type_id=$this->input->post('material_type_id');
 			$material_name=$this->input->post('material_name');
 			
-			if(empty($material_unit))
+			if(empty($material_type_id))
 			{
 				$response['code'] = 201;
-				$response['message'] = 'Material Unit is Required'; 
+				$response['message'] = 'Material Type Id is Required'; 
 			}else if(empty($material_name))
 			{
 				$response['code'] = 201;
 				$response['message'] = 'Material Name is Required'; 
 			}else{
-				$check_material_exist = $this->model->selectWhereData('add_materials', array('material_type_id'=>$material_unit,'material_name'=>$material_name),array('id'));
+				$check_material_exist = $this->model->selectWhereData('add_materials', array('material_type_id'=>$material_type_id,'material_name'=>$material_name),array('id'));
 	
 				if(empty($check_material_exist)){
 				$material_info=array(
 					// 'project_id'=>$project_id,
 					// 'supervisor_id'=>$supervisor_id,
+					'material_type_id'=>$material_type_id,
 					'material_name'=>$material_name,
 					'created_at'=>date('Y-m-d H:i:s')
 				);
-
-				$add_material_id=$this->model->insertData('add_materials',$material_info);
-					$material_unit_info=array(
-					// 'project_id'=>$project_id,
-					// 'supervisor_id'=>$supervisor_id,
-					'add_material_id'=>$add_material_id,
-					'material_unit'=>$material_unit,
-					'created_at'=>date('Y-m-d H:i:s')
-				);
-				$this->model->insertData('add_material_unit',$material_unit_info);
-
+				$this->model->insertData('add_materials',$material_info);
 					$response['code'] = REST_Controller::HTTP_OK;
 					$response['status'] = true;
 					$response['message'] = 'Material Added Successfull'; 
@@ -729,7 +712,7 @@ class Welcome extends REST_Controller {
 		echo json_encode($response);
 	}	
 
-	public function all_material_list_post()
+	public function material_list_post()
 	{
 		$response = array('code' => - 1, 'status' => false, 'message' => '');
 		$validate = validateToken();
@@ -750,54 +733,7 @@ class Welcome extends REST_Controller {
 		}
 		
 		echo json_encode($response);
-	}	
-
-	public function material_type_list_post()
-	{
-		$response = array('code' => - 1, 'status' => false, 'message' => '');
-		$validate = validateToken();
-		if ($validate) {
-			$get_material_type_list= $this->model->selectWhereData('add_materials_type',array('status'=>'0'),array('*'),false);
-			if(!empty($get_material_type_list))
-			{
-				$get_material_type_list=$get_material_type_list;
-			}else{
-				$get_material_type_list=[];
-			}
-			$response['code'] = REST_Controller::HTTP_OK;
-			$response['status'] = true;
-			$response['material_list'] = $get_material_type_list;
-		}else{
-			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
-            $response['message'] = 'Unauthorised';
-		}
-		
-		echo json_encode($response);
-	}
-	
-	public function material_unit_list_post()
-	{
-		$response = array('code' => - 1, 'status' => false, 'message' => '');
-		$validate = validateToken();
-		if ($validate) {
-			$get_material_type_list= $this->model->selectWhereData('add_material_unit',array('status'=>'0'),array('id','material_unit','created_at'),false);
-			if(!empty($get_material_type_list))
-			{
-				$get_material_type_list=$get_material_type_list;
-			}else{
-				$get_material_type_list=[];
-			}
-			$response['code'] = REST_Controller::HTTP_OK;
-			$response['status'] = true;
-			$response['material_list'] = $get_material_type_list;
-		}else{
-			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
-            $response['message'] = 'Unauthorised';
-		}
-		
-		echo json_encode($response);
-	}
-
+	}		
 
 	public function add_material_type_post()
 	{
@@ -839,7 +775,7 @@ class Welcome extends REST_Controller {
 		echo json_encode($response);
 	}	
 
-public function add_material_received_post()
+	public function add_material_received_post()
 	{
 		$response = array('code' => - 1, 'status' => false, 'message' => '');
 		$validate = validateToken();
@@ -854,7 +790,6 @@ public function add_material_received_post()
 			$material_name=json_decode($this->input->post('material_name'));
 			$qty=json_decode($this->input->post('qty'));
 			$unit=json_decode($this->input->post('unit'));
-			$total_amount=json_decode($this->input->post('total_amount'));
 			$notes=$this->input->post('notes');
 			$sourcePath = $_FILES['image']['tmp_name']; 
 			if(empty($project_id))
@@ -929,80 +864,38 @@ public function add_material_received_post()
 						'material'=>$material_name[$i],
 						'qty'=>$qty[$i],
 						'unit'=>$unit[$i],
-						'total_amount'=>$total_amount[$i],
 					);
 				}
-			
 				foreach($mappedarray as $mapped_key =>$mappedvalue)
 				{
-				    $getexistrecord=$this->model->selectWhereData('material_received', array('project_id'=>$project_id,'company_id'=>$company_id,'supervisor_id'=>$supervisor_id,'owner_id'=>$owner_id,'material_name'=>$mappedvalue['material']),array('id','qty'));
-				 	if(empty($getexistrecord))
-				    {
-    				        $material_info=array(
-    						'project_id'=>$project_id,
-    						'supervisor_id'=>$supervisor_id,
-    						'company_id'=>$company_id,
-    						'owner_id'=>$owner_id,
-    						'party_name'=>$party_name,
-    						'received_date'=>$received_date,
-    						'notes'=>$notes,
-    						'image_url'=>$img_url,
-    						'created_at'=>date('Y-m-d H:i:s'),
-    						'updated_at'=>date('Y-m-d H:i:s'),
-    						'material_name'=>$mappedvalue['material'],
-    						'qty'=>$mappedvalue['qty'],
-    						'unit'=>$mappedvalue['unit'],
-    					);
-    					$material_id=$this->model->insertData('material_received',$material_info);
-    					$deduct_qty=0;
-    					$material_info=array(
-    						'material_id'=>$material_id,
-    						'add_qty'=>$mappedvalue['qty'],
-    						'deduct_qty'=>$deduct_qty,
-    						'total_qty'=>$mappedvalue['qty']+$deduct_qty,
-    						'created_at'=>date('Y-m-d H:i:s'),
-    						'updated_at'=>date('Y-m-d H:i:s'),
-    						'total_amount'=>$mappedvalue['total_amount'],
-    						'used_status'=>1,
-    					);
-    					$this->model->insertData('material_received_inventory',$material_info);
-						$transaction_history=array(
-    						'project_id'=>$project_id,
-    						'supervisor_id'=>$supervisor_id,
-    						'company_id'=>$company_id,
-    						'owner_id'=>$owner_id,
-    						'party_name'=>$party_name,
-    						'material_id'=>$material_id,
-    						'total_amount'=>$mappedvalue['total_amount'],
-    						'created_at'=>date('Y-m-d H:i:s'),
-    						'updated_at'=>date('Y-m-d H:i:s'),
-    						'material_received_status'=>1,
-    					);
-    					$this->model->insertData('transaction_history',$transaction_history);
-				    }else{
-				         $material_info=array(
-    						'qty'=>$mappedvalue['qty'] + $getexistrecord['qty'],
-    					);
-				        $this->model->updateData('material_received',$material_info,array('id'=>$getexistrecord['id']));
-				        $get_material_list_inventory= $this->Supermodel->update_inventory($getexistrecord['id']);
-				        //print_r($get_material_list_inventory);die();
-						$material_info1=array(
-    						'material_id'=>$get_material_list_inventory[0]['material_id'],
-    						'add_qty'=>$mappedvalue['qty'],
-    						'deduct_qty'=>0,
-    						'total_qty'=>$mappedvalue['qty']+$get_material_list_inventory[0]['total_qty'],
-    						'created_at'=>date('Y-m-d H:i:s'),
-    						'updated_at'=>date('Y-m-d H:i:s'),
-    						'total_amount'=>0,
-							'used_status'=>1
-    					);
-						$this->model->updateData('material_received_inventory',array('used_status'=>0),array('material_id'=>$get_material_list_inventory[0]['material_id']));
-    					$material_id=$this->model->insertData('material_received_inventory',$material_info1);
-
-						$get_material_list_inventory= $this->Supermodel->get_transaction_history($project_id,$company_id,$supervisor_id,$owner_id,$party_name);
-				    }
-				
+					$material_info=array(
+						'project_id'=>$project_id,
+						'supervisor_id'=>$supervisor_id,
+						'company_id'=>$company_id,
+						'owner_id'=>$owner_id,
+						'party_name'=>$party_name,
+						'received_date'=>$received_date,
+						'notes'=>$notes,
+						'image_url'=>$img_url,
+						'created_at'=>date('Y-m-d H:i:s'),
+						'updated_at'=>date('Y-m-d H:i:s'),
+						'material_name'=>$mappedvalue['material'],
+						'qty'=>$mappedvalue['qty'],
+						'unit'=>$mappedvalue['unit'],
+					);
+					$material_id=$this->model->insertData('material_received',$material_info);
+					$deduct_qty=0;
+					$material_info=array(
+						'material_id'=>$material_id,
+						'add_qty'=>$mappedvalue['qty'],
+						'deduct_qty'=>$deduct_qty,
+						'total_qty'=>$mappedvalue['qty']+$deduct_qty,
+						'created_at'=>date('Y-m-d H:i:s'),
+						'updated_at'=>date('Y-m-d H:i:s'),
+					);
+					$this->model->insertData('material_received_inventory',$material_info);
 				}
+				
 				
 				$response['code'] = REST_Controller::HTTP_OK;
 				$response['status'] = true;
@@ -1017,7 +910,8 @@ public function add_material_received_post()
 		echo json_encode($response);
 	}	
 
-	public function material_received_list_post()
+
+   public function material_received_list_post()
 	{
 		$response = array('code' => - 1, 'status' => false, 'message' => '');
 		$validate = validateToken();
@@ -1027,35 +921,17 @@ public function add_material_received_post()
 			$company_id=$this->input->post('company_id');
 			$supervisor_id=$this->input->post('supervisor_id');
 			$owner_id=$this->input->post('owner_id');
-			if(empty($project_id))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Project Id is Required'; 
-			}else if(empty($company_id))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Company Id is Required'; 
-			}else if(empty($supervisor_id))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Supervisor Id is Required'; 
-			}else if(empty($owner_id))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Owner Id is Required'; 
-			}else{
-			    	$get_material_list= $this->Supermodel->get_material_details($project_id,$company_id,$supervisor_id,$owner_id);
-			//print_r($get_material_list);die();
+			$get_material_list= $this->Supermodel->get_material_details($project_id,$company_id,$supervisor_id,$owner_id);
 			if(!empty($get_material_list))
 			{
 				foreach($get_material_list as $get_material_key =>$get_material_val)
 				{
-					if($get_material_val['total_qty'] == '')
+					if($get_material_val['deduct_qty'] == '')
 					{
-						$get_material_list[$get_material_key]['total_qty']='';
+						$get_material_list[$get_material_key]['deduct_qty']='';
 					}
 					else{
-						$get_material_list[$get_material_key]['total_qty']=$get_material_val['total_qty'];
+						$get_material_list[$get_material_key]['deduct_qty']=$get_material_val['deduct_qty'];
 					}
 				}
 			}else{
@@ -1064,8 +940,6 @@ public function add_material_received_post()
 			$response['code'] = REST_Controller::HTTP_OK;
 			$response['status'] = true;
 			$response['message'] = $get_material_list; 
-			}
-		
 		}else{
 			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
             $response['message'] = 'Unauthorised';
@@ -1074,7 +948,7 @@ public function add_material_received_post()
 		echo json_encode($response);
 	}	
 
-public function material_received_list_details_post()
+	public function material_received_list_details_post()
 	{
 		$response = array('code' => - 1, 'status' => false, 'message' => '');
 		$validate = validateToken();
@@ -1133,7 +1007,9 @@ public function material_received_list_details_post()
 		
 		echo json_encode($response);
 	}	
-	public function add_material_purchase_post()
+	
+	
+    public function add_material_purchase_post()
 	{
 		$response = array('code' => - 1, 'status' => false, 'message' => '');
 		$validate = validateToken();
@@ -1144,7 +1020,6 @@ public function material_received_list_details_post()
 			$owner_id=$this->input->post('owner_id');
 			$party_name=$this->input->post('party_name');
 			$purchase_date=$this->input->post('purchase_date');
-			$material_type_id=$this->input->post('material_type_id');
 			$material_name=json_decode($this->input->post('material_name'));
 			$qty=json_decode($this->input->post('qty'));
 			$unit=json_decode($this->input->post('unit'));
@@ -1197,17 +1072,11 @@ public function material_received_list_details_post()
 				$response['code'] = 201;
 				$response['message'] = 'Total Amount is Required'; 
 			}
-			else if(empty($material_type_id))
+			else if(empty($sourcePath))
 			{
 				$response['code'] = 201;
-				$response['message'] = 'Material Type is Required'; 
-			}
-// 			else if(empty($sourcePath))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Image is Required'; 
-// 			}
-			else{
+				$response['message'] = 'Image is Required'; 
+			}else{
 				if(!empty($sourcePath))
 				{
 					$destinationPath = 'material_purchased/'; 
@@ -1246,7 +1115,6 @@ public function material_received_list_details_post()
 							'supervisor_id'=>$supervisor_id,
 							'company_id'=>$company_id,
 							'owner_id'=>$owner_id,
-							'material_type_id'=>$material_type_id,
 							'party_name'=>$party_name,
 							'purchase_date'=>$purchase_date,
 							'notes'=>$notes,
@@ -1276,6 +1144,7 @@ public function material_received_list_details_post()
 		
 		echo json_encode($response);
 	}	
+
 
 	public function add_unit_post()
 	{
@@ -1316,244 +1185,29 @@ public function material_received_list_details_post()
 		
 		echo json_encode($response);
 	}	
-
-
-
-	public function add_material_used_post()
+	
+	public function material_type_list_post()
 	{
 		$response = array('code' => - 1, 'status' => false, 'message' => '');
 		$validate = validateToken();
 		if ($validate) {
-			$project_id=$this->input->post('project_id');
-			$company_id=$this->input->post('company_id');
-			$supervisor_id=$this->input->post('supervisor_id');
-			$owner_id=$this->input->post('owner_id');
-			$party_name=$this->input->post('party_name');
-			$used_date=$this->input->post('used_date');
-			$material_name=json_decode($this->input->post('material_name'));
-			$qty=json_decode($this->input->post('qty'));
-			$notes=$this->input->post('notes');
-			$sourcePath = $_FILES['image']['tmp_name']; 
-			if(empty($project_id))
+			$get_material_type_list= $this->model->selectWhereData('add_materials_type',array('status'=>'0'),array('*'),false);
+			if(!empty($get_material_type_list))
 			{
-				$response['code'] = 201;
-				$response['message'] = 'Project Id is Required'; 
-			}else if(empty($company_id))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Company Id is Required'; 
-			}else if(empty($supervisor_id))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Supervisor Id is Required'; 
-			}else if(empty($owner_id))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Owner Id is Required'; 
-			}else if(empty($party_name))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Party Name is Required'; 
-			}else if(empty($material_name))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Material Name is Required'; 
-			}else if(empty($qty))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Qty is Required'; 
-			}else if(empty($notes))
-			{
-				$response['code'] = 201;
-				$response['message'] = 'Notes is Required'; 
+				$get_material_type_list=$get_material_type_list;
+			}else{
+				$get_material_type_list=[];
 			}
-			
-		    else{
-				if(!empty($sourcePath))
-				{
-					$destinationPath = 'material_received/'; 
-					
-					$filename = $_FILES['image']['name'];
-					$destination = $destinationPath . $filename;
-					$img_url=base_url().$destination;
-					
-					if (move_uploaded_file($sourcePath, $destination)) {
-						$response['code'] = 201;
-						$response['status'] = false;
-						$response['message'] = 'Image moved successfully'; 
-					} else {
-						$response['code'] = 201;
-						$response['status'] = false;
-						$response['message'] = 'Failed to move Image'; 
-					}
-				}
-				$mappedarray=array();
-				$count=count($material_name);
-				for($i=0;$i<$count;$i++)
-				{
-					$mappedarray[]=array(
-						'material'=>$material_name[$i],
-						'qty'=>$qty[$i],
-					);
-				}
-				foreach($mappedarray as $mapped_key =>$mappedvalue)
-				{
-					$get_material_list= $this->model->selectWhereData('material_received_inventory',array('material_id'=>$mappedvalue['material'],'used_status'=>'1'),array('*'),false);
-					$total_deduct_amt=$get_material_list[0]['total_qty']-$mappedvalue['qty'];
-					if(!empty($get_material_list))
-					{
-						$material_info=array(
-        						'material_id'=>$mappedvalue['material'],
-        						'add_qty'=>$get_material_list[0]['total_qty'],
-        						'deduct_qty'=>$mappedvalue['qty'],
-        						'total_qty'=>$total_deduct_amt,
-        						'created_at'=>date('Y-m-d H:i:s'),
-        						'updated_at'=>date('Y-m-d H:i:s'),
-        						'total_amount'=>0,
-								'used_status'=>1
-        					);
-						$this->model->updateData('material_received_inventory',array('used_status'=>0),array('material_id'=>$mappedvalue['material']));
-						$this->model->insertData('material_received_inventory',$material_info);
-						$response['code'] = REST_Controller::HTTP_OK;
-						$response['status'] = true;
-						$response['message'] = 'Total stock '. $total_deduct_amt; 
-						//echo $this->db->last_query();die();
-					}
-					else{
-						
-						$response['code'] = 201;
-						$response['status'] = false;
-						$response['message'] = 'Total stock '. 0; 
-					}
-
-				}
-				
-			
-
-			}	
-			
+			$response['code'] = REST_Controller::HTTP_OK;
+			$response['status'] = true;
+			$response['material_list'] = $get_material_type_list;
 		}else{
 			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
             $response['message'] = 'Unauthorised';
 		}
 		
 		echo json_encode($response);
-	}	
-	
-// 	public function add_material_used_post()
-// 	{
-// 		$response = array('code' => - 1, 'status' => false, 'message' => '');
-// 		$validate = validateToken();
-// 		if ($validate) {
-// 			$project_id=$this->input->post('project_id');
-// 			$company_id=$this->input->post('company_id');
-// 			$supervisor_id=$this->input->post('supervisor_id');
-// 			$owner_id=$this->input->post('owner_id');
-// 			$party_name=$this->input->post('party_name');
-// 			$used_date=$this->input->post('used_date');
-// 			$material_name=json_decode($this->input->post('material_name'));
-// 			$qty=json_decode($this->input->post('qty'));
-// 			$notes=$this->input->post('notes');
-// 			$sourcePath = $_FILES['image']['tmp_name']; 
-// 			if(empty($project_id))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Project Id is Required'; 
-// 			}else if(empty($company_id))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Company Id is Required'; 
-// 			}else if(empty($supervisor_id))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Supervisor Id is Required'; 
-// 			}else if(empty($owner_id))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Owner Id is Required'; 
-// 			}else if(empty($party_name))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Party Name is Required'; 
-// 			}else if(empty($material_name))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Material Name is Required'; 
-// 			}else if(empty($qty))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Qty is Required'; 
-// 			}else if(empty($notes))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Notes is Required'; 
-// 			}
-			
-// 		    else{
-// 				if(!empty($sourcePath))
-// 				{
-// 					$destinationPath = 'material_received/'; 
-					
-// 					$filename = $_FILES['image']['name'];
-// 					$destination = $destinationPath . $filename;
-// 					$img_url=base_url().$destination;
-					
-// 					if (move_uploaded_file($sourcePath, $destination)) {
-// 						$response['code'] = 201;
-// 						$response['status'] = false;
-// 						$response['message'] = 'Image moved successfully'; 
-// 					} else {
-// 						$response['code'] = 201;
-// 						$response['status'] = false;
-// 						$response['message'] = 'Failed to move Image'; 
-// 					}
-// 				}
-// 				$mappedarray=array();
-// 				$count=count($material_name);
-// 				for($i=0;$i<$count;$i++)
-// 				{
-// 					$mappedarray[]=array(
-// 						'material'=>$material_name[$i],
-// 						'qty'=>$qty[$i],
-// 					);
-// 				}
-// 				foreach($mappedarray as $mapped_key =>$mappedvalue)
-// 				{
-// 					$get_material_list= $this->model->selectWhereData('material_received_inventory',array('material_id'=>$mappedvalue['material'],'used_status'=>'1'),array('*'),false);
-// 					//print_r($get_material_list);die();
-// 					$total_deduct_amt=$get_material_list[0]['total_qty']-$mappedvalue['qty'];
-// 					if(!empty($get_material_list))
-// 					{
-// 						$material_info=array(
-//         						'material_id'=>$mappedvalue['material'],
-//         						'add_qty'=>$get_material_list[0]['total_qty'],
-//         						'deduct_qty'=>$mappedvalue['qty'],
-//         						'total_qty'=>$total_deduct_amt,
-//         						'created_at'=>date('Y-m-d H:i:s'),
-//         						'updated_at'=>date('Y-m-d H:i:s'),
-//         						'total_amount'=>0,
-// 								'used_status'=>1
-//         					);
-// 						$this->model->updateData('material_received_inventory',array('used_status'=>0),array('material_id'=>$mappedvalue['material']));
-// 						$this->model->insertData('material_received_inventory',$material_info);
-					  
-// 						//echo $this->db->last_query();die();
-// 					}
-
-// 				}
-				
-// 				$response['code'] = REST_Controller::HTTP_OK;
-// 				$response['status'] = true;
-// 				$response['message'] = 'Total stock '. $total_deduct_amt; 
-
-// 			}	
-			
-// 		}else{
-// 			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
-//             $response['message'] = 'Unauthorised';
-// 		}
-		
-// 		echo json_encode($response);
-// 	}	
+	}
 	
 }
+
