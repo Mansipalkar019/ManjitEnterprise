@@ -20,7 +20,7 @@ class Supermodel extends CI_Model {
     
 
 
-      public function get_material_details($project_id,$company_id,$supervisor_id,$owner_id)
+      public function get_material_details($project_id,$company_id,$supervisor_id,$owner_id,$material_name)
     {
 		$this->db->select('mr.id, MAX(mri.id) AS max_id,mri.total_qty,am.material_name, amt.material_unit');
 		//$this->db->select('COALESCE(mri.total_qty, 0) - COALESCE(mri1.deduct_qty, 0) AS total_qty', FALSE);
@@ -33,12 +33,27 @@ class Supermodel extends CI_Model {
 		$this->db->where('mr.company_id',$company_id);
 		$this->db->where('mr.supervisor_id',$supervisor_id);
 		$this->db->where('mr.owner_id',$owner_id);
+		$this->db->where('mr.material_name',$material_name);
 		$this->db->group_by('mr.id, mri.total_qty, am.material_name, amt.material_unit');
 		$this->db->order_by('mr.id', 'ASC');
 		$query = $this->db->get();
 	    //echo $this->db->last_query();die();
 		$result = $query->result_array();
 		//print_r($result);die();
+		return $result;
+    }
+
+	public function get_received_list($project_id,$company_id,$supervisor_id,$owner_id)
+    {
+		$this->db->select('DISTINCT(material_received.material_name),add_trade.trade_name');
+        $this->db->from('material_received');
+        $this->db->join('add_trade', 'add_trade.add_material_id = material_received.material_name', 'left');
+		$this->db->where('material_received.project_id',$project_id);
+		$this->db->where('material_received.company_id',$company_id);
+		$this->db->where('material_received.supervisor_id',$supervisor_id);
+		$this->db->where('material_received.owner_id',$owner_id);
+		$query = $this->db->get();
+	 	$result = $query->result_array();
 		return $result;
     }
     
@@ -94,10 +109,10 @@ class Supermodel extends CI_Model {
     
     public function get_material_list()
     {
-        $this->db->select('add_materials.*,add_material_unit.material_unit');
+        $this->db->select('add_materials.*,add_trade.trade_name,add_material_unit.material_unit');
 		$this->db->from('add_materials');
 		$this->db->join('add_material_unit','add_material_unit.add_material_id=add_materials.id','left');
-		
+		$this->db->join('add_trade','add_trade.add_material_id=add_materials.id','left');
 		$this->db->where('add_materials.status',0);
 		$this->db->order_by('add_materials.id','DESC');
 		$query = $this->db->get();
@@ -121,7 +136,7 @@ class Supermodel extends CI_Model {
 		return $result;
     }
 
-	public function get_transaction_history($project_id,$company_id,$supervisor_id,$owner_id,$party_name)
+	public function get_transaction_history($project_id,$company_id,$supervisor_id,$owner_id,$party_name,$material_id)
     {
 		
 	    $this->db->select('th.material_id, SUM(th.total_amount) AS total_amount, MAX(th.id) AS id');
@@ -132,11 +147,97 @@ class Supermodel extends CI_Model {
 		$this->db->where('th.supervisor_id',$supervisor_id );
 		$this->db->where('th.owner_id',$owner_id );
 		$this->db->where('th.party_name',$party_name );
+		$this->db->where('th.material_id',$material_id );
 	    $this->db->group_by('th.id, th.total_amount');
         $this->db->order_by('th.id', 'ASC');
 		$query = $this->db->get();
+		//echo $this->db->last_query();die();
 		$result = $query->result_array();
 		return $result;
     }
 
+	public function sum_material_purchase($project_id,$company_id,$supervisor_id,$owner_id,$party_name)
+    {
+		$this->db->select('SUM(th.add_amount) as total_amount, th.material_id, th.party_name');
+        $this->db->from('transaction_history as th');
+		$this->db->where('th.project_id',$project_id );
+		$this->db->where('th.company_id',$company_id );
+		$this->db->where('th.supervisor_id',$supervisor_id );
+		$this->db->where('th.owner_id',$owner_id );
+        $this->db->where('th.party_name', $party_name);
+        $this->db->where('material_received_status', 1);
+		$this->db->where('paid_unpaid_status', 0);
+        $this->db->group_by('material_id');
+		$query = $this->db->get();
+		//echo $this->db->last_query();die();
+		$result = $query->result_array();
+		return $result;
+    }
+
+	public function sum_material_purchase_by_id($project_id,$company_id,$supervisor_id,$owner_id,$party_name,$material_id)
+    {
+		$this->db->select('SUM(th.add_amount) as total_amount, th.material_id, th.party_name');
+        $this->db->from('transaction_history as th');
+		$this->db->where('th.project_id',$project_id );
+		$this->db->where('th.company_id',$company_id );
+		$this->db->where('th.supervisor_id',$supervisor_id );
+		$this->db->where('th.owner_id',$owner_id );
+        $this->db->where('th.party_name', $party_name);
+		$this->db->where('th.material_id', $material_id);
+        $this->db->where('material_received_status', 1);
+        $this->db->group_by('material_id');
+		$query = $this->db->get();
+		//echo $this->db->last_query();die();
+		$result = $query->result_array();
+		return $result;
+    }
+
+	public function get_material_received($project_id,$company_id,$supervisor_id,$owner_id)
+    {
+		$this->db->select('SUM(th.add_amount) as total_amount, th.material_id, th.party_name,th.created_at,th.paid_unpaid_status');
+        $this->db->from('transaction_history as th');
+		$this->db->where('th.project_id',$project_id );
+		$this->db->where('th.company_id',$company_id );
+		$this->db->where('th.supervisor_id',$supervisor_id );
+		$this->db->where('th.owner_id',$owner_id );
+       $this->db->where('material_received_status', 1);
+        $this->db->group_by('material_id');
+		$query = $this->db->get();
+		//echo $this->db->last_query();die();
+		$result = $query->result_array();
+		return $result;
+    }
+
+
+	public function get_payment_in($project_id,$company_id,$supervisor_id,$owner_id)
+    {
+		$this->db->select('th.total_amount as add_amount, th.material_id, th.party_name,th.created_at,th.paid_unpaid_status');
+        $this->db->from('transaction_history as th');
+		$this->db->where('th.project_id',$project_id );
+		$this->db->where('th.company_id',$company_id );
+		$this->db->where('th.supervisor_id',$supervisor_id );
+		$this->db->where('th.owner_id',$owner_id );
+       	$this->db->where('payment_in_status', 1);
+        //$this->db->group_by('material_id');
+		$query = $this->db->get();
+		//echo $this->db->last_query();die();
+		$result = $query->result_array();
+		return $result;
+    }
+
+	public function get_payment_out($project_id,$company_id,$supervisor_id,$owner_id)
+    {
+		$this->db->select('th.total_amount as add_amount, th.material_id, th.party_name,th.created_at,th.paid_unpaid_status');
+        $this->db->from('transaction_history as th');
+		$this->db->where('th.project_id',$project_id );
+		$this->db->where('th.company_id',$company_id );
+		$this->db->where('th.supervisor_id',$supervisor_id );
+		$this->db->where('th.owner_id',$owner_id );
+       	$this->db->where('payment_out_status', 1);
+        //$this->db->group_by('material_id');
+		$query = $this->db->get();
+		//echo $this->db->last_query();die();
+		$result = $query->result_array();
+		return $result;
+    }
 }

@@ -681,7 +681,7 @@ class Welcome extends REST_Controller {
 			// $supervisor_id=$this->input->post('supervisor_id');
 			$material_unit=$this->input->post('material_unit');
 			$material_name=$this->input->post('material_name');
-			
+			$trade_name=$this->input->post('trade_name');
 			if(empty($material_unit))
 			{
 				$response['code'] = 201;
@@ -690,26 +690,33 @@ class Welcome extends REST_Controller {
 			{
 				$response['code'] = 201;
 				$response['message'] = 'Material Name is Required'; 
+			}else if(empty($trade_name))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Trade Name is Required'; 
 			}else{
 				$check_material_exist = $this->model->selectWhereData('add_materials', array('material_type_id'=>$material_unit,'material_name'=>$material_name),array('id'));
 	
 				if(empty($check_material_exist)){
 				$material_info=array(
-					// 'project_id'=>$project_id,
-					// 'supervisor_id'=>$supervisor_id,
 					'material_name'=>$material_name,
 					'created_at'=>date('Y-m-d H:i:s')
 				);
 
 				$add_material_id=$this->model->insertData('add_materials',$material_info);
 					$material_unit_info=array(
-					// 'project_id'=>$project_id,
-					// 'supervisor_id'=>$supervisor_id,
 					'add_material_id'=>$add_material_id,
 					'material_unit'=>$material_unit,
 					'created_at'=>date('Y-m-d H:i:s')
 				);
 				$this->model->insertData('add_material_unit',$material_unit_info);
+
+				$trade_info=array(
+					'add_material_id'=>$add_material_id,
+					'trade_name'=>$trade_name,
+					'created_at'=>date('Y-m-d H:i:s')
+				);
+				$this->model->insertData('add_trade',$trade_info);
 
 					$response['code'] = REST_Controller::HTTP_OK;
 					$response['status'] = true;
@@ -735,6 +742,11 @@ class Welcome extends REST_Controller {
 		$validate = validateToken();
 		if ($validate) {
 			$get_material_list= $this->Supermodel->get_material_list();
+			// foreach($get_material_list as $get_material_key =>$get_material_val)
+			// {
+			// 	$get_material_list=$get_material_val;
+			// 	$get_material_list[$get_material_key]['trade_name']=$get_material_val['trade_name'];
+			// }
 			if(!empty($get_material_list))
 			{
 				$get_material_list=$get_material_list;
@@ -965,7 +977,8 @@ public function add_material_received_post()
     						'total_amount'=>$mappedvalue['total_amount'],
     						'used_status'=>1,
     					);
-    					$this->model->insertData('material_received_inventory',$material_info);
+    					$material_inventory_id=$this->model->insertData('material_received_inventory',$material_info);
+						$deduct_amt=0;
 						$transaction_history=array(
     						'project_id'=>$project_id,
     						'supervisor_id'=>$supervisor_id,
@@ -973,10 +986,14 @@ public function add_material_received_post()
     						'owner_id'=>$owner_id,
     						'party_name'=>$party_name,
     						'material_id'=>$material_id,
-    						'total_amount'=>$mappedvalue['total_amount'],
+							'material_inventory_id'=>$material_inventory_id,
+							'deduct_amount'=>$deduct_amt,
+							'add_amount'=>$mappedvalue['total_amount'],
+    						'total_amount'=>$mappedvalue['total_amount']+$deduct_amt,
     						'created_at'=>date('Y-m-d H:i:s'),
     						'updated_at'=>date('Y-m-d H:i:s'),
     						'material_received_status'=>1,
+							'used_status'=>1
     					);
     					$this->model->insertData('transaction_history',$transaction_history);
 				    }else{
@@ -997,9 +1014,30 @@ public function add_material_received_post()
 							'used_status'=>1
     					);
 						$this->model->updateData('material_received_inventory',array('used_status'=>0),array('material_id'=>$get_material_list_inventory[0]['material_id']));
-    					$material_id=$this->model->insertData('material_received_inventory',$material_info1);
-
-						$get_material_list_inventory= $this->Supermodel->get_transaction_history($project_id,$company_id,$supervisor_id,$owner_id,$party_name);
+    					$material_inventory_id=$this->model->insertData('material_received_inventory',$material_info1);
+						//echo $material_inventory_id;die();
+						$get_transaction_history= $this->Supermodel->get_transaction_history($project_id,$company_id,$supervisor_id,$owner_id,$party_name,$getexistrecord['id']);
+						if($get_transaction_history[0]['total_amount']!=$mappedvalue['total_amount'])
+						{ $add_amount=$mappedvalue['total_amount']; $total_amt=$add_amount+$get_transaction_history[0]['total_amount']; $deduct_amount=0; }else{  $add_amount=$mappedvalue['total_amount']; $total_amt=$add_amount+$get_transaction_history[0]['total_amount']; $deduct_amount=0; }
+						$transaction_history=array(
+    						'project_id'=>$project_id,
+    						'supervisor_id'=>$supervisor_id,
+    						'company_id'=>$company_id,
+    						'owner_id'=>$owner_id,
+    						'party_name'=>$party_name,
+    						'material_id'=>$get_transaction_history[0]['material_id'],
+							'material_inventory_id'=>$material_inventory_id,
+							'add_amount'=>$add_amount,
+							'deduct_amount'=>$deduct_amount,
+    						'total_amount'=>$total_amt,
+    						'created_at'=>date('Y-m-d H:i:s'),
+    						'updated_at'=>date('Y-m-d H:i:s'),
+    						'material_received_status'=>1,
+							'used_status'=>1
+    					);
+						//print_r($transaction_history);die();
+						$this->model->updateData('transaction_history',array('used_status'=>0),array('id'=>$get_transaction_history[0]['id']));
+    					$this->model->insertData('transaction_history',$transaction_history);
 				    }
 				
 				}
@@ -1044,23 +1082,17 @@ public function add_material_received_post()
 				$response['code'] = 201;
 				$response['message'] = 'Owner Id is Required'; 
 			}else{
-			    	$get_material_list= $this->Supermodel->get_material_details($project_id,$company_id,$supervisor_id,$owner_id);
-			//print_r($get_material_list);die();
-			if(!empty($get_material_list))
-			{
-				foreach($get_material_list as $get_material_key =>$get_material_val)
+				$get_receive= $this->Supermodel->get_received_list($project_id,$company_id,$supervisor_id,$owner_id);
+				foreach($get_receive as $get_receive_key => $get_receive_val)
 				{
-					if($get_material_val['total_qty'] == '')
-					{
-						$get_material_list[$get_material_key]['total_qty']='';
-					}
-					else{
-						$get_material_list[$get_material_key]['total_qty']=$get_material_val['total_qty'];
-					}
+					$get_material_list[$get_receive_key]['trade_name']=$get_receive_val['trade_name'];
+					$get_material_list[$get_receive_key]['received_material_list']= $this->Supermodel->get_material_details($project_id,$company_id,$supervisor_id,$owner_id,$get_receive_val['material_name']);
+					
 				}
-			}else{
-				$get_material_list=[];
-			}
+				if(empty($get_material_list))
+				{
+					$get_material_list='';
+				}
 			$response['code'] = REST_Controller::HTTP_OK;
 			$response['status'] = true;
 			$response['message'] = $get_material_list; 
@@ -1440,120 +1472,390 @@ public function material_received_list_details_post()
 		echo json_encode($response);
 	}	
 	
-// 	public function add_material_used_post()
-// 	{
-// 		$response = array('code' => - 1, 'status' => false, 'message' => '');
-// 		$validate = validateToken();
-// 		if ($validate) {
-// 			$project_id=$this->input->post('project_id');
-// 			$company_id=$this->input->post('company_id');
-// 			$supervisor_id=$this->input->post('supervisor_id');
-// 			$owner_id=$this->input->post('owner_id');
-// 			$party_name=$this->input->post('party_name');
-// 			$used_date=$this->input->post('used_date');
-// 			$material_name=json_decode($this->input->post('material_name'));
-// 			$qty=json_decode($this->input->post('qty'));
-// 			$notes=$this->input->post('notes');
-// 			$sourcePath = $_FILES['image']['tmp_name']; 
-// 			if(empty($project_id))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Project Id is Required'; 
-// 			}else if(empty($company_id))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Company Id is Required'; 
-// 			}else if(empty($supervisor_id))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Supervisor Id is Required'; 
-// 			}else if(empty($owner_id))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Owner Id is Required'; 
-// 			}else if(empty($party_name))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Party Name is Required'; 
-// 			}else if(empty($material_name))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Material Name is Required'; 
-// 			}else if(empty($qty))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Qty is Required'; 
-// 			}else if(empty($notes))
-// 			{
-// 				$response['code'] = 201;
-// 				$response['message'] = 'Notes is Required'; 
-// 			}
-			
-// 		    else{
-// 				if(!empty($sourcePath))
-// 				{
-// 					$destinationPath = 'material_received/'; 
+	public function add_payment_in_post()
+	{
+		$response = array('code' => - 1, 'status' => false, 'message' => '');
+		$validate = validateToken();
+		if ($validate) {
+			$project_id=$this->input->post('project_id');
+			$company_id=$this->input->post('company_id');
+			$supervisor_id=$this->input->post('supervisor_id');
+			$owner_id=$this->input->post('owner_id');
+			$party_name=$this->input->post('party_name');
+			$amount_received=$this->input->post('amount_received');
+			$description=$this->input->post('description');
+			$sourcePath = $_FILES['image']['tmp_name']; 
+			if(empty($project_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Project Id is Required'; 
+			}else if(empty($company_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Company Id is Required'; 
+			}else if(empty($supervisor_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Supervisor Id is Required'; 
+			}else if(empty($owner_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Owner Id is Required'; 
+			}else if(empty($party_name))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Party Name is Required'; 
+			}else if(empty($amount_received))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Amount Received is Required'; 
+			}
+		    else{
+				// if(!empty($sourcePath))
+				// {
+				// 	$destinationPath = 'material_received/'; 
 					
-// 					$filename = $_FILES['image']['name'];
-// 					$destination = $destinationPath . $filename;
-// 					$img_url=base_url().$destination;
+				// 	$filename = $_FILES['image']['name'];
+				// 	$destination = $destinationPath . $filename;
+				// 	$img_url=base_url().$destination;
 					
-// 					if (move_uploaded_file($sourcePath, $destination)) {
-// 						$response['code'] = 201;
-// 						$response['status'] = false;
-// 						$response['message'] = 'Image moved successfully'; 
-// 					} else {
-// 						$response['code'] = 201;
-// 						$response['status'] = false;
-// 						$response['message'] = 'Failed to move Image'; 
-// 					}
-// 				}
-// 				$mappedarray=array();
-// 				$count=count($material_name);
-// 				for($i=0;$i<$count;$i++)
-// 				{
-// 					$mappedarray[]=array(
-// 						'material'=>$material_name[$i],
-// 						'qty'=>$qty[$i],
-// 					);
-// 				}
-// 				foreach($mappedarray as $mapped_key =>$mappedvalue)
-// 				{
-// 					$get_material_list= $this->model->selectWhereData('material_received_inventory',array('material_id'=>$mappedvalue['material'],'used_status'=>'1'),array('*'),false);
-// 					//print_r($get_material_list);die();
-// 					$total_deduct_amt=$get_material_list[0]['total_qty']-$mappedvalue['qty'];
-// 					if(!empty($get_material_list))
-// 					{
-// 						$material_info=array(
-//         						'material_id'=>$mappedvalue['material'],
-//         						'add_qty'=>$get_material_list[0]['total_qty'],
-//         						'deduct_qty'=>$mappedvalue['qty'],
-//         						'total_qty'=>$total_deduct_amt,
-//         						'created_at'=>date('Y-m-d H:i:s'),
-//         						'updated_at'=>date('Y-m-d H:i:s'),
-//         						'total_amount'=>0,
-// 								'used_status'=>1
-//         					);
-// 						$this->model->updateData('material_received_inventory',array('used_status'=>0),array('material_id'=>$mappedvalue['material']));
-// 						$this->model->insertData('material_received_inventory',$material_info);
-					  
-// 						//echo $this->db->last_query();die();
-// 					}
-
-// 				}
+				// 	if (move_uploaded_file($sourcePath, $destination)) {
+				// 		$response['code'] = 201;
+				// 		$response['status'] = false;
+				// 		$response['message'] = 'Image moved successfully'; 
+				// 	} else {
+				// 		$response['code'] = 201;
+				// 		$response['status'] = false;
+				// 		$response['message'] = 'Failed to move Image'; 
+				// 	}
+				// }
 				
-// 				$response['code'] = REST_Controller::HTTP_OK;
-// 				$response['status'] = true;
-// 				$response['message'] = 'Total stock '. $total_deduct_amt; 
+				$payment_in=array(
+						'project_id'=>$project_id,
+						'supervisor_id'=>$supervisor_id,
+						'company_id'=>$company_id,
+						'owner_id'=>$owner_id,
+						'party_name'=>$party_name,
+						'add_amount'=>$amount_received,
+						'deduct_amount'=>0,
+						'total_amount'=>$amount_received,
+						'description'=>$description,
+						'created_at'=>date('Y-m-d H:i:s'),
+						'updated_at'=>date('Y-m-d H:i:s'),
+						'payment_in_status'=>1,
+						'total_amount'=>$amount_received,
+						'used_status'=>1
+					);
+				//$this->model->updateData('transaction_history',array('used_status'=>0),array('material_id'=>$mappedvalue['material']));
+				$this->model->insertData('transaction_history',$payment_in);
+					  
+				$response['code'] = REST_Controller::HTTP_OK;
+				$response['status'] = true;
+				$response['message'] = 'Payment In'; 
 
-// 			}	
+			}	
 			
-// 		}else{
-// 			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
-//             $response['message'] = 'Unauthorised';
-// 		}
+		}else{
+			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
+            $response['message'] = 'Unauthorised';
+		}
 		
-// 		echo json_encode($response);
-// 	}	
-	
+		echo json_encode($response);
+	}	
+
+	public function get_material_receive_by_partyname_post()
+	{
+		$response = array('code' => - 1, 'status' => false, 'message' => '');
+		$validate = validateToken();
+		if ($validate) {
+			$project_id=$this->input->post('project_id');
+			$company_id=$this->input->post('company_id');
+			$supervisor_id=$this->input->post('supervisor_id');
+			$owner_id=$this->input->post('owner_id');
+			$party_name=$this->input->post('party_name');
+			$sourcePath = $_FILES['image']['tmp_name']; 
+			if(empty($project_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Project Id is Required'; 
+			}else if(empty($company_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Company Id is Required'; 
+			}else if(empty($supervisor_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Supervisor Id is Required'; 
+			}else if(empty($owner_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Owner Id is Required'; 
+			}else if(empty($party_name))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Party Name is Required'; 
+			}
+		    else{
+				$get_material_purchase= $this->Supermodel->sum_material_purchase($project_id,$company_id,$supervisor_id,$owner_id,$party_name);
+				if(!empty($get_material_purchase))
+				{
+					$get_material_purchase=$get_material_purchase;
+				}else{
+					$get_material_purchase=[];
+				}
+				$response['code'] = REST_Controller::HTTP_OK;
+				$response['status'] = true;
+				$response['message'] = $get_material_purchase; 
+
+			}	
+			
+		}else{
+			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
+            $response['message'] = 'Unauthorised';
+		}
+		
+		echo json_encode($response);
+	}	
+
+	public function add_payment_out_post()
+	{
+		$response = array('code' => - 1, 'status' => false, 'message' => '');
+		$validate = validateToken();
+		if ($validate) {
+			$project_id=$this->input->post('project_id');
+			$company_id=$this->input->post('company_id');
+			$supervisor_id=$this->input->post('supervisor_id');
+			$owner_id=$this->input->post('owner_id');
+			$party_name=$this->input->post('party_name');
+			$amount_received=$this->input->post('amount_received');
+			$description=$this->input->post('description');
+			$material_id=$this->input->post('material_id');
+			$sourcePath = $_FILES['image']['tmp_name']; 
+			if(empty($project_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Project Id is Required'; 
+			}else if(empty($company_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Company Id is Required'; 
+			}else if(empty($supervisor_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Supervisor Id is Required'; 
+			}else if(empty($owner_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Owner Id is Required'; 
+			}else if(empty($party_name))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Party Name is Required'; 
+			}else if(empty($amount_received))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Amount Received is Required'; 
+			}
+			else if(empty($material_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Material Id is Required'; 
+			}
+		    else{
+				$get_material_purchase= $this->Supermodel->sum_material_purchase_by_id($project_id,$company_id,$supervisor_id,$owner_id,$party_name,$material_id);
+				//echo "<pre>";print_r($get_material_purchase);die();
+				if($get_material_purchase[0]['total_amount'] == $amount_received)
+				{
+					$paid_unpaid_status=1;
+					$company_list_info=array(
+						'paid_unpaid_status'=>$paid_unpaid_status,
+					);
+					$check_company_exist = $this->model->updateData('transaction_history',$company_list_info,array('project_id'=>$project_id,'company_id'=>$company_id,'supervisor_id'=>$supervisor_id,'owner_id'=>$owner_id,'material_id'=>$material_id,'material_received_status'=>1));
+				}
+				$payment_out=array(
+						'project_id'=>$project_id,
+						'supervisor_id'=>$supervisor_id,
+						'company_id'=>$company_id,
+						'owner_id'=>$owner_id,
+						'material_id'=>$material_id,
+						'party_name'=>$party_name,
+						'add_amount'=>$amount_received,
+						'deduct_amount'=>0,
+						'total_amount'=>$amount_received,
+						'description'=>$description,
+						'created_at'=>date('Y-m-d H:i:s'),
+						'updated_at'=>date('Y-m-d H:i:s'),
+						'payment_out_status'=>1,
+						'total_amount'=>$amount_received,
+						'used_status'=>1,
+						
+					);
+				//$this->model->updateData('transaction_history',array('used_status'=>0),array('material_id'=>$mappedvalue['material']));
+				$this->model->insertData('transaction_history',$payment_out);
+					  
+				$response['code'] = REST_Controller::HTTP_OK;
+				$response['status'] = true;
+				$response['message'] = 'Payment Out'; 
+
+			}	
+			
+		}else{
+			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
+            $response['message'] = 'Unauthorised';
+		}
+		
+		echo json_encode($response);
+	}	
+
+
+	public function get_transaction_list_post()
+	{
+		$response = array('code' => - 1, 'status' => false, 'message' => '');
+		$validate = validateToken();
+		if ($validate) {
+			$project_id=$this->input->post('project_id');
+			$company_id=$this->input->post('company_id');
+			$supervisor_id=$this->input->post('supervisor_id');
+			$owner_id=$this->input->post('owner_id');
+			
+			if(empty($project_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Project Id is Required'; 
+			}else if(empty($company_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Company Id is Required'; 
+			}else if(empty($supervisor_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Supervisor Id is Required'; 
+			}else if(empty($owner_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Owner Id is Required'; 
+			}
+		    else{
+				$fdata=array();
+				$get_material_received= $this->Supermodel->get_material_received($project_id,$company_id,$supervisor_id,$owner_id);
+				$fdata['material_received']=$get_material_received;
+				$get_payment_in= $this->Supermodel->get_payment_in($project_id,$company_id,$supervisor_id,$owner_id);
+				$get_payment_out= $this->Supermodel->get_payment_out($project_id,$company_id,$supervisor_id,$owner_id);
+				$fdata['paymeny_in']=$get_payment_in;
+				$fdata['paymeny_out']=$get_payment_out;
+				$response['code'] = REST_Controller::HTTP_OK;
+				$response['status'] = true;
+				$response['message'] = $fdata; 
+
+			}	
+			
+		}else{
+			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
+            $response['message'] = 'Unauthorised';
+		}
+		
+		echo json_encode($response);
+	}	
+
+
+	public function add_party_post()
+	{
+		$response = array('code' => - 1, 'status' => false, 'message' => '');
+		$validate = validateToken();
+		if ($validate) {
+			
+			$party_name=$this->input->post('party_name');
+			$phone_no=$this->input->post('phone_no');
+			$person_id=$this->input->post('person_id');
+			
+			if(empty($party_name))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Party Name is Required'; 
+			}if(empty($phone_no))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Phone No is Required'; 
+			}if(empty($person_id))
+			{
+				$response['code'] = 201;
+				$response['message'] = 'Person is Required'; 
+			}else{
+				$check_material_exist = $this->model->selectWhereData('add_party', array('party_name'=>$party_name),array('id'));
+				
+				if(empty($check_material_exist)){
+				$add_party_info=array(
+					'party_name'=>$party_name,
+					'phone_no'=>$phone_no,
+					'person_id'=>$person_id,
+					'created_at'=>date('Y-m-d H:i:s')
+				);
+				$this->model->insertData('add_party',$add_party_info);
+					$response['code'] = REST_Controller::HTTP_OK;
+					$response['status'] = true;
+					$response['message'] = 'Party Details Added Successfully'; 
+				}
+				else{
+					$response['code'] = 201;
+					$response['status'] = false;
+					$response['message'] = 'Party Name Already Exist'; 
+				}
+			
+			}
+		}else{
+			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
+            $response['message'] = 'Unauthorised';
+		}
+		
+		echo json_encode($response);
+	}	
+
+	public function party_list_post()
+	{
+		$response = array('code' => - 1, 'status' => false, 'message' => '');
+		$validate = validateToken();
+		if ($validate) {
+			$get_party_list= $this->model->selectWhereData('add_party',array('status'=>'0'),array('*'),false);
+			if(!empty($get_party_list))
+			{
+				$get_party_list=$get_party_list;
+			}else{
+				$get_party_list=[];
+			}
+			$response['code'] = REST_Controller::HTTP_OK;
+			$response['status'] = true;
+			$response['party_list'] = $get_party_list;
+		}else{
+			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
+            $response['message'] = 'Unauthorised';
+		}
+		
+		echo json_encode($response);
+	}
+
+	public function staff_list_post()
+	{
+		$response = array('code' => - 1, 'status' => false, 'message' => '');
+		$validate = validateToken();
+		if ($validate) {
+			$get_person_list= $this->model->selectWhereData('person',array('status'=>'0'),array('*'),false);
+			if(!empty($get_person_list))
+			{
+				$get_person_list=$get_person_list;
+			}else{
+				$get_person_list=[];
+			}
+			$response['code'] = REST_Controller::HTTP_OK;
+			$response['status'] = true;
+			$response['person_list'] = $get_person_list;
+		}else{
+			$response['code'] = REST_Controller::HTTP_UNAUTHORIZED;
+            $response['message'] = 'Unauthorised';
+		}
+		
+		echo json_encode($response);
+	}
+
+
+
 }
